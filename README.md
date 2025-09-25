@@ -86,3 +86,4 @@ The CI/CD pipeline requires the following secrets to be set in the GitHub reposi
 *   `DEV_EC2_HOST`: The hostname or IP address of the development EC2 instance.
 *   `DEV_EC2_USER`: The username for the development EC2 instance.
 *   `DEV_EC2_KEY`: The private SSH key for the development EC2 instance.
+*   `REPO_ACCESS_TOKEN`: A Personal Access Token (PAT) with `repo` scope. This is required for the `bump-version` job to create tags that trigger other workflows. To create a PAT, go to your GitHub settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token. Give it a descriptive name and select the `repo` scope. Copy the token and add it as a secret in your repository settings.
