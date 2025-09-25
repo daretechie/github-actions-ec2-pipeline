@@ -5,7 +5,7 @@ on:
     branches:
       - main
       - development
-      - 'feature/*'
+      - "feature/*"
 
 jobs:
   build-and-test:
@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
 
       - name: Install dependencies
         run: npm ci
@@ -36,11 +36,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
         with:
-          fetch-depth: '0'
+          fetch-depth: "0"
 
       - name: Bump version and push tag
-        uses: anothrNick/github-tag-action@1.36.0
+        uses: anothrNick/github-tag-action@v1.36.0
         env:
           GITHUB_TOKEN: ${{ secrets.REPO_ACCESS_TOKEN }}
           DEFAULT_BUMP: patch
           TAG_PREFIX: v
+          WITH_V: true # Ensures consistent v prefix
+          SKIP_TAG_PUSH: false
+          CREATE_ANNOTATED_TAG: true
