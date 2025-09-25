@@ -1,5 +1,7 @@
 node_modules/
-coverage/
+coverage
+*.pem/
 *.log
 .env
 deployment.tar.gz
+*.pem

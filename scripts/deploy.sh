@@ -1,49 +1,64 @@
 #!/bin/bash
 set -e
 
+# Configuration
+APP_DIR=${1:-"/var/www/app"}
+BACKUP_DIR=${2:-"/var/www/backup"}
+SERVICE_NAME=${3:-"app"}
+RELEASES_DIR="$APP_DIR/releases"
+CURRENT_RELEASE_DIR="$APP_DIR/current"
+TIMESTAMP=$(date +%Y%m%d%H%M%S)
+NEW_RELEASE_DIR="$RELEASES_DIR/$TIMESTAMP"
+
 echo "🚀 Starting deployment process..."
 
-# Configuration
-APP_DIR="/var/www/app"
-BACKUP_DIR="/var/www/backup"
-SERVICE_NAME="app"
-
 # Create necessary directories
-sudo mkdir -p $APP_DIR
+sudo mkdir -p $RELEASES_DIR
 sudo mkdir -p $BACKUP_DIR
-
-# Change ownership to ubuntu user
 sudo chown -R ubuntu:ubuntu $APP_DIR
 sudo chown -R ubuntu:ubuntu $BACKUP_DIR
 
-# Navigate to app directory
-cd $APP_DIR
+# Create new release directory
+mkdir -p $NEW_RELEASE_DIR
 
 echo "📦 Extracting deployment package..."
 # Extract the deployment package
-tar -xzf /tmp/deployment.tar.gz
+tar -xzf /tmp/deployment.tar.gz -C $NEW_RELEASE_DIR
 
 echo "📋 Installing dependencies..."
 # Install only production dependencies
+cd $NEW_RELEASE_DIR
 npm ci --only=production
 
 echo "🔄 Managing application process..."
-# Stop the current application (if running)
-pm2 stop $SERVICE_NAME || echo "No existing process to stop"
 
-# Delete old process
-pm2 delete $SERVICE_NAME || echo "No existing process to delete"
+# Check if the service is already running
+if pm2 list | grep -q $SERVICE_NAME; then
+  echo "🔄 Reloading application with PM2 for zero-downtime deployment..."
+  pm2 reload $SERVICE_NAME --env production
+else
+  echo "🚀 Starting application with PM2..."
+  # Set production environment
+  export NODE_ENV=production
+  export PORT=3000
+  export HOST=0.0.0.0
+  export DEPLOYMENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+  
+  pm2 start $NEW_RELEASE_DIR/src/server.js --name $SERVICE_NAME --env production
+fi
 
-echo "🌍 Setting environment variables..."
-# Set production environment
-export NODE_ENV=production
-export PORT=3000
-export HOST=0.0.0.0
-export DEPLOYMENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
+# Create a backup of the previous release
+if [ -L "$CURRENT_RELEASE_DIR" ]; then
+  PREVIOUS_RELEASE_DIR=$(readlink -f $CURRENT_RELEASE_DIR)
+  if [ -d "$PREVIOUS_RELEASE_DIR" ]; then
+    echo "Creating backup of the previous release..."
+    BACKUP_NAME=$(basename $PREVIOUS_RELEASE_DIR)
+    mv $PREVIOUS_RELEASE_DIR "$BACKUP_DIR/$BACKUP_NAME"
+  fi
+fi
 
-echo "🚀 Starting application with PM2..."
-# Start the application with PM2
-pm2 start src/server.js --name $SERVICE_NAME --env production
+# Symlink the new release to current
+ln -nfs $NEW_RELEASE_DIR $CURRENT_RELEASE_DIR
 
 # Save PM2 configuration
 pm2 save
@@ -68,9 +83,38 @@ for i in {1..5}; do
     if [ $i -eq 5 ]; then
         echo "❌ Health check failed after 5 attempts"
         pm2 logs $SERVICE_NAME --lines 20
+        
+        echo "- Rolling back to the previous release..."
+        
+        # Find the latest backup
+        LATEST_BACKUP=$(ls -td $BACKUP_DIR/* | head -1)
+        
+        if [ -d "$LATEST_BACKUP" ]; then
+          # Move the failed release to the backup directory
+          mv $NEW_RELEASE_DIR "$BACKUP_DIR/failed-$TIMESTAMP"
+          
+          # Restore the latest backup
+          mv $LATEST_BACKUP $RELEASES_DIR/
+          
+          # Symlink to the restored release
+          RESTORED_RELEASE_DIR="$RELEASES_DIR/$(basename $LATEST_BACKUP)"
+          ln -nfs $RESTORED_RELEASE_DIR $CURRENT_RELEASE_DIR
+          
+          # Reload the application
+          pm2 reload $SERVICE_NAME --env production
+          
+          echo "✅ Rollback completed successfully!"
+        else
+          echo "❌ No backup found to rollback to."
+        fi
+        
         exit 1
     fi
 done
+
+# Clean up old releases (keep the last 5)
+echo "🧹 Cleaning up old releases..."
+ls -dt $RELEASES_DIR/* | tail -n +6 | xargs -r rm -rf
 
 echo "🎉 Deployment completed successfully!"
 echo "📊 Application status:"

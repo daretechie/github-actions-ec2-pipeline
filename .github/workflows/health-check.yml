@@ -1,0 +1,52 @@
+name: Health Check
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check Production Environment
+        id: check_prod
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PROD_URL }}/health)
+          if [ "$response" -ne 200 ]; then
+            echo "Production environment is down!"
+            echo "PROD_DOWN=true" >> $GITHUB_ENV
+          else
+            echo "Production environment is up."
+          fi
+
+      - name: Check Development Environment
+        id: check_dev
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.DEV_URL }}/health)
+          if [ "$response" -ne 200 ]; then
+            echo "Development environment is down!"
+            echo "DEV_DOWN=true" >> $GITHUB_ENV
+          else
+            echo "Development environment is up."
+          fi
+
+      - name: Create Issue on Failure
+        if: env.PROD_DOWN == 'true' || env.DEV_DOWN == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            let body = ''
+            if (process.env.PROD_DOWN === 'true') {
+              body += 'Production environment is down!\n'
+            }
+            if (process.env.DEV_DOWN === 'true') {
+              body += 'Development environment is down!\n'
+            }
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: 'Application Health Check Failed',
+              body: body
+            });

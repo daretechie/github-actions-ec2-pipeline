@@ -1,53 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GitHub Actions EC2 Pipeline Demo</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div class="container">
-      <header>
-        <h1>🚀 GitHub Actions EC2 Pipeline</h1>
-        <p>Node.js application with automated CI/CD deployment to AWS EC2</p>
-      </header>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitHub Actions EC2 Pipeline</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <h1 class="mt-5">GitHub Actions EC2 Pipeline</h1>
+    <p class="lead">A simple Node.js application with a CI/CD pipeline using GitHub Actions to deploy to an EC2 instance.</p>
 
-      <main>
-        <div class="card">
-          <h2>🏥 Application Health</h2>
-          <div id="health-status">Loading...</div>
-        </div>
+    <h2 class="mt-5">Products</h2>
+    <div id="products" class="row"></div>
+  </div>
 
-        <div class="card">
-          <h2>📊 Application Info</h2>
-          <div id="app-info">Loading...</div>
-        </div>
-
-        <div class="card">
-          <h2>💻 Server Status</h2>
-          <div id="server-status">Loading...</div>
-        </div>
-
-        <div class="card">
-          <h2>🎯 Pipeline Features</h2>
-          <ul class="features">
-            <li>✅ Automated Testing with Jest</li>
-            <li>✅ Semantic Versioning</li>
-            <li>✅ EC2 Deployment with SSH</li>
-            <li>✅ PM2 Process Management</li>
-            <li>✅ Nginx Reverse Proxy</li>
-            <li>✅ Zero-Downtime Deployment</li>
-            <li>✅ Health Checks & Monitoring</li>
-            <li>✅ Production-Ready Security</li>
-          </ul>
-        </div>
-      </main>
-
-      <footer>
-        <p>Deployed via GitHub Actions • Running on AWS EC2</p>
-      </footer>
-    </div>
-    <script src="script.js"></script>
-  </body>
+  <script src="script.js"></script>
+</body>
 </html>

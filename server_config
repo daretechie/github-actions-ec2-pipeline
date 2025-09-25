@@ -1,0 +1,27 @@
+# Connect to your instance (replace with your IP and key path)
+ssh -i github-actions-key.pem ubuntu@YOUR-EC2-PUBLIC-IP
+
+# Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js 18.x
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Verify installation
+node --version
+npm --version
+
+# Install PM2 globally (process manager)
+sudo npm install -g pm2
+
+# Install Nginx (reverse proxy)
+sudo apt install nginx -y
+
+# Create application directory
+sudo mkdir -p /var/www/app
+sudo chown -R ubuntu:ubuntu /var/www/app
+
+# Create backup directory
+sudo mkdir -p /var/www/backup
+sudo chown -R ubuntu:ubuntu /var/www/backup

@@ -1,0 +1,55 @@
+name: Release and Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up deployment environment
+        run: |
+          echo "EC2_HOST=${{ secrets.PROD_EC2_HOST }}" >> $GITHUB_ENV
+          echo "EC2_USER=${{ secrets.PROD_EC2_USER }}" >> $GITHUB_ENV
+          echo "EC2_KEY=${{ secrets.PROD_EC2_KEY }}" >> $GITHUB_ENV
+          echo "ENV_NAME=production" >> $GITHUB_ENV
+
+      - name: Create deployment package
+        run: tar -czf deployment.tar.gz .
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ env.EC2_HOST }}
+          EC2_USER: ${{ env.EC2_USER }}
+          EC2_KEY: ${{ env.EC2_KEY }}
+        run: |
+          echo "- Deploying to ${{ env.ENV_NAME }} environment..."
+          echo "$EC2_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          scp -o StrictHostKeyChecking=no -i private_key.pem deployment.tar.gz $EC2_USER@$EC2_HOST:/tmp/
+
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "/var/www/app/scripts/deploy.sh"
+
+  create-release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
