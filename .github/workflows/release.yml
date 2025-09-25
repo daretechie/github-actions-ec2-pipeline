@@ -20,7 +20,10 @@ jobs:
           echo "ENV_NAME=production" >> $GITHUB_ENV
 
       - name: Create deployment package
-        run: tar -czf deployment.tar.gz .
+        run: |
+          mkdir deploy_package
+          cp -r src public scripts package.json package-lock.json deploy_package/
+          tar -czf deployment.tar.gz -C deploy_package .
 
       - name: Deploy to EC2
         env:
