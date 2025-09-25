@@ -12,23 +12,33 @@ jobs:
       - name: Check Production Environment
         id: check_prod
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PROD_URL }}/health)
-          if [ "$response" -ne 200 ]; then
-            echo "Production environment is down!"
+          set +e # Allow curl to fail without exiting the script
+          CURL_OUTPUT=$(curl -s -o /dev/null -w "%{{http_code}}" ${{ secrets.PROD_URL }}/health 2>&1)
+          HTTP_CODE=$(echo $CURL_OUTPUT | tail -n 1)
+          CURL_ERROR=$(echo $CURL_OUTPUT | head -n -1)
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Production environment is down! HTTP Code: $HTTP_CODE"
             echo "PROD_DOWN=true" >> $GITHUB_ENV
+            echo "PROD_ERROR=$CURL_ERROR" >> $GITHUB_ENV
           else
-            echo "Production environment is up."
+            echo "Production environment is up. HTTP Code: $HTTP_CODE"
           fi
 
       - name: Check Development Environment
         id: check_dev
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.DEV_URL }}/health)
-          if [ "$response" -ne 200 ]; then
-            echo "Development environment is down!"
+          set +e # Allow curl to fail without exiting the script
+          CURL_OUTPUT=$(curl -s -o /dev/null -w "%{{http_code}}" ${{ secrets.DEV_URL }}/health 2>&1)
+          HTTP_CODE=$(echo $CURL_OUTPUT | tail -n 1)
+          CURL_ERROR=$(echo $CURL_OUTPUT | head -n -1)
+
+          if [ "$HTTP_CODE" -ne 200 ]; then
+            echo "Development environment is down! HTTP Code: $HTTP_CODE"
             echo "DEV_DOWN=true" >> $GITHUB_ENV
+            echo "DEV_ERROR=$CURL_ERROR" >> $GITHUB_ENV
           else
-            echo "Development environment is up."
+            echo "Development environment is up. HTTP Code: $HTTP_CODE"
           fi
 
       - name: Create Issue on Failure
@@ -40,9 +50,15 @@ jobs:
             let body = ''
             if (process.env.PROD_DOWN === 'true') {
               body += 'Production environment is down!\n'
+              if (process.env.PROD_ERROR) {
+                body += `cURL Error: ${process.env.PROD_ERROR}\n`
+              }
             }
             if (process.env.DEV_DOWN === 'true') {
               body += 'Development environment is down!\n'
+              if (process.env.DEV_ERROR) {
+                body += `cURL Error: ${process.env.DEV_ERROR}\n`
+              }
             }
             github.rest.issues.create({
               owner: context.repo.owner,
