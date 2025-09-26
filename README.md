@@ -16,14 +16,14 @@ This project is a demonstration of how to set up a full CI/CD pipeline for a Nod
 
 ## CI/CD Pipeline
 
-The CI/CD pipeline is split into two workflows: `ci-cd.yml` for Continuous Integration and `release.yml` for Continuous Deployment.
+The CI/CD pipeline is split into two workflows: `ci.yml` for Continuous Integration and `release.yml` for Continuous Deployment.
 
-### `ci-cd.yml` - Continuous Integration
+### `ci.yml` - Continuous Integration
 
 This workflow runs on every push to the `main`, `development`, and `feature/*` branches. It consists of two jobs:
 
 1.  **`build-and-test`:** This job builds the application and runs the test suite.
-2.  **`bump-version`:** This job runs only on the `main` branch after the `build-and-test` job succeeds. It automatically bumps the patch version of the application and creates a new Git tag (e.g., `v1.0.1`).
+2.  **`bump-version`:** This job runs only on the `main` branch after the `build-and-test` job succeeds. It automatically bumps the patch version of the application and creates a new Git tag (e.g., `v1.0.1`). The tagging step uses a Personal Access Token stored as `REPO_ACCESS_TOKEN`.
 
 ### `release.yml` - Continuous Deployment
 
@@ -40,7 +40,7 @@ This workflow is triggered whenever a new tag is pushed to the repository (tags 
 
 2. **`create-release`:**
    - Runs after successful deployment
-   - Creates a GitHub Release with the tag name
+   - Creates a GitHub Release with the tag name using `GITHUB_TOKEN` and `permissions: contents: write`
 
 To trigger this workflow:
 
@@ -63,7 +63,7 @@ graph TD
 
 ## Technologies Used
 
-- **Node.js**
+- **Node.js 20.x (LTS)**
 - **Express**
 - **Jest** for testing
 - **GitHub Actions** for CI/CD
@@ -103,4 +103,39 @@ The CI/CD pipeline requires the following secrets to be set in the GitHub reposi
 - `DEV_EC2_HOST`: The hostname or IP address of the development EC2 instance.
 - `DEV_EC2_USER`: The username for the development EC2 instance.
 - `DEV_EC2_KEY`: The private SSH key for the development EC2 instance.
-- `REPO_ACCESS_TOKEN`: A Personal Access Token (PAT) with `repo` scope. This is required for the `bump-version` job to create tags that trigger other workflows. To create a PAT, go to your GitHub settings -> Developer settings -> Personal access tokens -> Tokens (classic) -> Generate new token. Give it a descriptive name and select the `repo` scope. Copy the token and add it as a secret in your repository settings.
+- `REPO_ACCESS_TOKEN`: A Personal Access Token (classic) with `repo` scope. This is required for the `bump-version` job to create tags that trigger `release.yml`.
+
+Optional:
+- `HEALTHCHECK_ISSUE_TOKEN`: A Personal Access Token (classic) with `repo` scope if you prefer creating issues from the scheduled health-check with a PAT instead of the built-in token.
+
+Repository Settings → Actions → General:
+- Set Workflow permissions to “Read and write permissions” to allow the built-in token to create releases and issues.
+
+## Health Check and Monitoring
+
+- Health endpoint: `/api/health`.
+- Workflow: `.github/workflows/health-check.yml` runs every 5 minutes and can be run manually via “Run workflow”.
+- On failure, it creates an issue in the repository (requires write permissions as noted above).
+
+## Deployment and Access
+
+- Zero-downtime releases with PM2: the deploy script runs the app via the stable symlink `current/src/server.js` and swaps releases atomically.
+- The app listens on `0.0.0.0:3000`. You can access it at:
+  - `http://YOUR_EC2_PUBLIC_IP:3000/`
+  - `http://YOUR_EC2_PUBLIC_IP:3000/api/health`
+- If you prefer port 80/443, add an Nginx reverse proxy in front of the app. Example server block (HTTP only):
+
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
