@@ -22,7 +22,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // API routes
 app.use('/api', apiRoutes);
-app.use('/health', healthRoutes);
+app.use('/api/health', healthRoutes);
 
 // 404 handler
 // 404 handler
