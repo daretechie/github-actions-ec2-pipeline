@@ -18,6 +18,12 @@ sudo mkdir -p $BACKUP_DIR
 sudo chown -R ${USER}:${USER} $APP_DIR
 sudo chown -R ${USER}:${USER} $BACKUP_DIR
 
+# Capture previous release before making any changes
+PREVIOUS_RELEASE_DIR=""
+if [ -L "$CURRENT_RELEASE_DIR" ]; then
+  PREVIOUS_RELEASE_DIR=$(readlink -f $CURRENT_RELEASE_DIR)
+fi
+
 # Create new release directory
 mkdir -p $NEW_RELEASE_DIR
 
@@ -35,13 +41,15 @@ npm ci --omit=dev
 
 echo "🔄 Managing application process..."
 
-# Symlink the new release to current BEFORE managing PM2
+# Point current symlink to new release BEFORE managing PM2
 ln -nfs $NEW_RELEASE_DIR $CURRENT_RELEASE_DIR
 
 # Manage PM2 with stable path pointing at current symlink
 if pm2 list | grep -q $SERVICE_NAME; then
-  echo "🔄 Reloading application with PM2 for zero-downtime deployment..."
-  pm2 reload $SERVICE_NAME --update-env
+  echo "🔄 Restarting application with PM2 to update script path..."
+  # Replace existing process to ensure it uses the stable current symlink path
+  pm2 delete $SERVICE_NAME || true
+  pm2 start $CURRENT_RELEASE_DIR/src/server.js --name $SERVICE_NAME --env production
 else
   echo "🚀 Starting application with PM2..."
   export NODE_ENV=production
@@ -51,15 +59,7 @@ else
   pm2 start $CURRENT_RELEASE_DIR/src/server.js --name $SERVICE_NAME --env production
 fi
 
-# Create a backup of the previous release
-if [ -L "$CURRENT_RELEASE_DIR" ]; then
-  PREVIOUS_RELEASE_DIR=$(readlink -f $CURRENT_RELEASE_DIR)
-  if [ -d "$PREVIOUS_RELEASE_DIR" ]; then
-    echo "Creating backup of the previous release..."
-    BACKUP_NAME=$(basename $PREVIOUS_RELEASE_DIR)
-    mv $PREVIOUS_RELEASE_DIR "$BACKUP_DIR/$BACKUP_NAME"
-  fi
-fi
+# Do NOT move previous release yet; wait until health check passes
 
 # Symlink already updated above
 
@@ -114,6 +114,13 @@ for i in {1..5}; do
         exit 1
     fi
 done
+
+# Now that deployment is healthy, back up the previous release if it exists and is different
+if [ -n "$PREVIOUS_RELEASE_DIR" ] && [ -d "$PREVIOUS_RELEASE_DIR" ] && [ "$PREVIOUS_RELEASE_DIR" != "$NEW_RELEASE_DIR" ]; then
+  echo "Creating backup of the previous release..."
+  BACKUP_NAME=$(basename $PREVIOUS_RELEASE_DIR)
+  mv $PREVIOUS_RELEASE_DIR "$BACKUP_DIR/$BACKUP_NAME" || echo "Previous release already moved or missing"
+fi
 
 # Clean up old releases (keep the last 5)
 echo "🧹 Cleaning up old releases..."
