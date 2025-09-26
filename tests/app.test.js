@@ -4,7 +4,7 @@ const app = require('../src/app');
 describe('Application Tests', () => {
   describe('Health Endpoint', () => {
     test('GET /health should return healthy status', async () => {
-      const response = await request(app).get('/health').expect(200);
+      const response = await request(app).get('/api/health').expect(200);
 
       expect(response.body.status).toBe('healthy');
       expect(response.body.timestamp).toBeDefined();
