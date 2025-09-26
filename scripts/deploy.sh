@@ -15,8 +15,8 @@ echo "🚀 Starting deployment process..."
 # Create necessary directories
 sudo mkdir -p $RELEASES_DIR
 sudo mkdir -p $BACKUP_DIR
-sudo chown -R ubuntu:ubuntu $APP_DIR
-sudo chown -R ubuntu:ubuntu $BACKUP_DIR
+sudo chown -R ${USER}:${USER} $APP_DIR
+sudo chown -R ${USER}:${USER} $BACKUP_DIR
 
 # Create new release directory
 mkdir -p $NEW_RELEASE_DIR
@@ -31,23 +31,24 @@ tar -xzf /tmp/deployment.tar.gz -C $NEW_RELEASE_DIR
 echo "📋 Installing dependencies..."
 # Install only production dependencies
 cd $NEW_RELEASE_DIR
-npm ci --only=production
+npm ci --omit=dev
 
 echo "🔄 Managing application process..."
 
-# Check if the service is already running
+# Symlink the new release to current BEFORE managing PM2
+ln -nfs $NEW_RELEASE_DIR $CURRENT_RELEASE_DIR
+
+# Manage PM2 with stable path pointing at current symlink
 if pm2 list | grep -q $SERVICE_NAME; then
   echo "🔄 Reloading application with PM2 for zero-downtime deployment..."
-  pm2 reload $SERVICE_NAME
+  pm2 reload $SERVICE_NAME --update-env
 else
   echo "🚀 Starting application with PM2..."
-  # Set production environment
   export NODE_ENV=production
   export PORT=3000
   export HOST=0.0.0.0
   export DEPLOYMENT_TIME=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
-  
-  pm2 start $NEW_RELEASE_DIR/src/server.js --name $SERVICE_NAME --env production
+  pm2 start $CURRENT_RELEASE_DIR/src/server.js --name $SERVICE_NAME --env production
 fi
 
 # Create a backup of the previous release
@@ -60,14 +61,13 @@ if [ -L "$CURRENT_RELEASE_DIR" ]; then
   fi
 fi
 
-# Symlink the new release to current
-ln -nfs $NEW_RELEASE_DIR $CURRENT_RELEASE_DIR
+# Symlink already updated above
 
 # Save PM2 configuration
 pm2 save
 
 # Setup PM2 to start on system boot
-pm2 startup ubuntu -u ubuntu --hp /home/ubuntu || echo "PM2 startup already configured"
+pm2 startup || echo "PM2 startup already configured"
 
 echo "🔍 Performing health check..."
 # Wait for application to start

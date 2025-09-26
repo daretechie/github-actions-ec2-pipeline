@@ -13,7 +13,7 @@ jobs:
         id: check_prod
         run: |
           set +e # Allow curl to fail without exiting the script
-          CURL_OUTPUT=$(curl -s -o /dev/null -w "%{{http_code}}" ${{ secrets.PROD_URL }}/health 2>&1)
+          CURL_OUTPUT=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.PROD_URL }}/api/health 2>&1)
           HTTP_CODE=$(echo $CURL_OUTPUT | tail -n 1)
           CURL_ERROR=$(echo $CURL_OUTPUT | head -n -1)
 
@@ -29,7 +29,7 @@ jobs:
         id: check_dev
         run: |
           set +e # Allow curl to fail without exiting the script
-          CURL_OUTPUT=$(curl -s -o /dev/null -w "%{{http_code}}" ${{ secrets.DEV_URL }}/health 2>&1)
+          CURL_OUTPUT=$(curl -s -o /dev/null -w "%{http_code}" ${{ secrets.DEV_URL }}/api/health 2>&1)
           HTTP_CODE=$(echo $CURL_OUTPUT | tail -n 1)
           CURL_ERROR=$(echo $CURL_OUTPUT | head -n -1)
 
