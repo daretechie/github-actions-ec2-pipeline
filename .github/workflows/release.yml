@@ -16,7 +16,6 @@ jobs:
         run: |
           echo "EC2_HOST=${{ secrets.PROD_EC2_HOST }}" >> $GITHUB_ENV
           echo "EC2_USER=${{ secrets.PROD_EC2_USER }}" >> $GITHUB_ENV
-          # Multi-line key handling
           {
             echo 'EC2_KEY<<EOF'
             echo "${{ secrets.PROD_EC2_KEY }}"
@@ -27,6 +26,7 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir deploy_package
+          # include your deploy.sh and any other scripts here
           cp -r src public scripts package.json package-lock.json .env.example deploy_package/
           tar -czf deployment.tar.gz -C deploy_package .
 
@@ -36,9 +36,16 @@ jobs:
           echo "$EC2_KEY" > private_key.pem
           chmod 600 private_key.pem
 
+          # copy tarball to EC2
           scp -o StrictHostKeyChecking=no -i private_key.pem deployment.tar.gz $EC2_USER@$EC2_HOST:/tmp/
 
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "/var/www/app/scripts/deploy.sh"
+          # extract and run deploy.sh on EC2
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $EC2_USER@$EC2_HOST "
+            mkdir -p /var/www/app &&
+            tar -xzf /tmp/deployment.tar.gz -C /var/www/app &&
+            chmod +x /var/www/app/scripts/deploy.sh &&
+            /var/www/app/scripts/deploy.sh
+          "
 
   create-release:
     needs: deploy
