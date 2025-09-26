@@ -35,7 +35,7 @@ echo "🔄 Managing application process..."
 # Check if the service is already running
 if pm2 list | grep -q $SERVICE_NAME; then
   echo "🔄 Reloading application with PM2 for zero-downtime deployment..."
-  pm2 reload $SERVICE_NAME --env production
+  pm2 reload $SERVICE_NAME
 else
   echo "🚀 Starting application with PM2..."
   # Set production environment
@@ -101,7 +101,7 @@ for i in {1..5}; do
           ln -nfs $RESTORED_RELEASE_DIR $CURRENT_RELEASE_DIR
           
           # Reload the application
-          pm2 reload $SERVICE_NAME --env production
+          pm2 reload $SERVICE_NAME
           
           echo "✅ Rollback completed successfully!"
         else
