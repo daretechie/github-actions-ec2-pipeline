@@ -26,8 +26,7 @@ echo "📦 Extracting deployment package..."
 tar -xzf /tmp/deployment.tar.gz -C $NEW_RELEASE_DIR
 
 # Ensure src directory exists
-mkdir -p $NEW_RELEASE_DIR/src
-cp -r $NEW_RELEASE_DIR/../src $NEW_RELEASE_DIR/
+
 
 echo "📋 Installing dependencies..."
 # Install only production dependencies
