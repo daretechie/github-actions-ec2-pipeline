@@ -15,8 +15,8 @@ jobs:
       - name: Set up deployment environment
         run: |
           echo "EC2_HOST=${{ secrets.PROD_EC2_HOST }}" >> $GITHUB_ENV
-          echo "EC2_USER=${{ secrets.EC2_USER }}" >> $GITHUB_ENV
-          echo "EC2_KEY=${{ secrets.EC2_KEY }}" >> $GITHUB_ENV
+          echo "EC2_USER=${{ secrets.PROD_EC2_USER }}" >> $GITHUB_ENV
+          echo "EC2_KEY=${{ secrets.PROD_EC2_KEY }}" >> $GITHUB_ENV
           echo "ENV_NAME=production" >> $GITHUB_ENV
 
       - name: Create deployment package
